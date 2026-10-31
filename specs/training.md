@@ -36,7 +36,7 @@ B1 就是主模型（Qwen3.5-2B）零样本加锁定的 prompt。
 - [ ] 只用文本输入时能正常加载和推理（Qwen3.5 Small 原生支持多模态，需确认纯文本路径没有额外开销或报错）
 - [ ] chat template 能关闭思考模式，直答模式下不输出思考内容
 - [ ] `E` `S` `C` `I` 在 tokenizer 中各是单个 token，且在答案位置可以直接取到 logits；不满足就换成能满足的标记，并同步改 prompt
-- [ ] 训练框架（TRL + PEFT）和推理框架（vLLM）都支持该模型
+- [ ] 训练框架（TRL + PEFT）和 HF transformers 推理都支持该模型；vLLM 只有 E8 需要，不支持时 E8 改用 HF 生成
 
 任一项不通过，就换到备选模型，不在适配上耗时间。
 

@@ -75,7 +75,7 @@
 | `specs/labeling-guideline.md` | 相关性档位定义与判定流程 | 草稿 |
 | `specs/eval.md` | 评测集、指标、baseline、验收阈值 | 草稿 |
 | `specs/training.md` | 训练方法、实验矩阵 | 草稿 |
-| `DESIGN.md` | 代码结构与接口 | 未开始 |
-| `TASKS.md` | 任务拆分与验收 | 未开始 |
-| `DECISIONS.md` | 关键决策记录 | 未开始 |
+| `DESIGN.md` | 代码结构与接口 | 草稿 |
+| `TASKS.md` | 任务拆分与验收 | 草稿 |
+| `DECISIONS.md` | 关键决策记录 | 草稿 |
 | `EXPERIMENTS.md` | 实验日志 | 开发期产生 |
