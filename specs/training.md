@@ -152,7 +152,7 @@ SFT 实际使用的 query_id 列表写入 `data/splits/sft_main.txt`，B3 使用
 
 - 每次运行的配置文件随代码提交；checkpoint 目录名格式为 `<实验ID>-<data_version>-<短 commit hash>`，能反查到配置。
 - checkpoint 和合并后的权重不进 git。
-- 每次运行在 `EXPERIMENTS.md` 记一行：实验 ID、基座、数据版本、输入模板版本、关键超参数、`dev` 主指标，以及（如果跑了）`test` 结果、结论。
+- 每次运行在 `EXPERIMENTS.md` 记一行：实验 ID、运行平台（DEC-009）、基座、数据版本、输入模板版本、关键超参数、`dev` 主指标，以及（如果跑了）`test` 结果、结论。
 
 ## 9. 验收
 

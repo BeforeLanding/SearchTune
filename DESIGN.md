@@ -70,7 +70,7 @@ def paired_bootstrap(pred_a: Path, pred_b: Path, gold_path: Path,
 
 - `Sample`：字段与 `specs/data.md` §3 一致
 - 预测行：字段与 `specs/eval.md` §3 一致
-- `metrics.json`：`specs/eval.md` §2 的全部指标，再加 `run_id`、`split`、`data_version`、`prompt_version`、`git_commit`
+- `metrics.json`：`specs/eval.md` §2 的全部指标，再加 `run_id`、`split`、`data_version`、`prompt_version`、`git_commit`、`hardware`（GPU 型号）
 
 ## 4. 直答模式的推理实现
 
@@ -101,7 +101,29 @@ def paired_bootstrap(pred_a: Path, pred_b: Path, gold_path: Path,
 
 - Python 3.11，用 `uv` 管理依赖，`uv.lock` 进 git。
 - 主要依赖：`torch`、`transformers`、`peft`、`trl`、`datasets`、`pyarrow`、`pyyaml`、`pytest`；`scikit-learn` 只在测试里用作参照；`vllm` 是可选依赖，只有 E8 需要。
-- **运行平台**：数据处理和打分在 Windows 本机就能跑。训练和推理放在 Linux（WSL2 或云端 GPU）上，因为 vLLM 不支持 Windows 原生运行，部分训练依赖在 Windows 上也不稳定。具体放在哪里在 T0 中确定。
+### 7.1 运行平台（DEC-009）
+
+| 平台 | 硬件 | 负责 |
+|---|---|---|
+| 本地 WSL2 Ubuntu | RTX 5060 Laptop 8GB，24GB 内存 | 写代码、数据管线、打分器、单元测试、`dev-quick` 冒烟 |
+| 云端 AutoDL | RTX 4090 24GB | 所有正式结果：B1、B3 的正式结果，E1–E8 的训练与评测 |
+
+**判断标准**：结果会进入比较、checkpoint 选择或验收判定的，一律在云端跑。本地跑出的数字只用来确认代码能跑通，不写进 `EXPERIMENTS.md` 的结果栏。
+
+### 7.2 本地 WSL2 的注意事项
+
+- RTX 5060 是 Blackwell 架构，PyTorch 必须安装 CUDA 12.8 或更高版本的构建。
+- WSL 内不装 Linux 版 NVIDIA 驱动，直接使用 Windows 驱动。
+- 在 `%UserProfile%\.wslconfig` 中把 WSL 可用内存调到 16GB 左右（默认只有宿主机内存的一半）。
+- 仓库、数据和 checkpoint 放在 WSL 自己的文件系统里（`~/`），不放在 `/mnt/c` 或 `/mnt/d`，后者 I/O 慢很多。
+
+### 7.3 云端约定
+
+- 环境由 `scripts/setup_cloud.sh` 一次装好；镜像名称、CUDA 版本和驱动版本记入 `DECISIONS.md`。先用“无卡模式”开机装环境，装好后再用 GPU 开机。
+- 代码通过 git 同步；模型从 ModelScope 下载；数据和 checkpoint 放在数据盘 `/root/autodl-tmp`。
+- 训练在 `tmux` 中运行，SSH 断开不会中断训练。
+- 回传：`metrics/*.json` 和 `EXPERIMENTS.md` 的记录行在云端直接提交推送；LoRA adapter 用 `scp` 拉回本地；完整 checkpoint 留在云端，不需要的及时删除。
+- 跑完立即关机。按小时计费，实例开着不跑也在扣钱。
 
 ## 8. 测试
 

@@ -13,11 +13,13 @@
 
 ### T0 环境与模型检查 · 待办
 - 依赖：无
-- 依据：`specs/training.md` §2.1，`DESIGN.md` §7
-- 产出：`pyproject.toml`、`uv.lock`；模型检查脚本及其输出；`DECISIONS.md` 中的检查结论
+- 依据：`specs/training.md` §2.1，`DESIGN.md` §7，`DECISIONS.md` DEC-009
+- 产出：`pyproject.toml`、`uv.lock`；`scripts/setup_cloud.sh`；模型检查脚本及其输出；`DECISIONS.md` 中的检查结论
 - 验收：
-  - [ ] training §2.1 的 5 项逐项有结论；不通过就切换备选模型，并记入 `DECISIONS.md`
-  - [ ] 确定训练和推理的运行平台（WSL2 或云端），记入 `DECISIONS.md`
+  - [ ] 本地 WSL2：按 DESIGN §7.2 配好，`torch.cuda.is_available()` 为真，能识别 RTX 5060
+  - [ ] 云端：`setup_cloud.sh` 能在新实例上一次装好环境；镜像名称、CUDA 和驱动版本已记入 `DECISIONS.md`
+  - [ ] training §2.1 的 5 项在云端逐项有结论；不通过就切换备选模型，并记入 `DECISIONS.md`
+  - [ ] 在云端用主模型跑 200 步 SFT 测吞吐，回填 training §7 的估算
 
 ### T1 项目骨架 · 待办
 - 依赖：T0
