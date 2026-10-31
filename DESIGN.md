@@ -5,85 +5,98 @@
 ## 1. 数据流
 
 ```
-data/raw ──prepare──▶ data/processed/<ver>/*.jsonl ─┬─train-sft / train-grpo / train-ce──▶ runs/<run_id>/ckpt
-                    └▶ data/splits/*.txt            │
-                                                    └─infer──▶ runs/<run_id>/pred/<split>.jsonl
-                                                                         │
-                                                                     score / compare
-                                                                         ▼
-                                                     runs/<run_id>/metrics/<split>.json  →  EXPERIMENTS.md
+data/raw ──prepare──▶ catalog.jsonl + pools/<split>.jsonl + splits/*.txt
+                                   │
+                                   ▼
+                        env（商品池 + 工具 + 奖励）
+                     ┌─────────────┼──────────────────────┐
+                rollout（评测）  verl 训练（L1 / L2）   gen-traj（B4 → 冷启动 SFT 数据）
+                     │
+                     ▼
+        runs/<run_id>/traj/<split>.jsonl ──score / compare──▶ metrics/<split>.json → EXPERIMENTS.md
 ```
 
-两条贯穿全局的约定：
+三条贯穿全局的约定：
 
-1. **推理和打分分开**：所有模型（B0、B1、B3、SFT、GRPO）都只负责产出 `specs/eval.md` §3 格式的预测文件，指标只由一个打分器计算。改指标不重跑推理，各模型之间也不会出现口径不一致。
-2. **训练和推理共用同一套输入构造与输出解析**：prompt 渲染、截断和档位解析各只有一份实现，SFT、GRPO 奖励和评测推理都调用它，避免训练和评测的口径偏差。
+1. **环境只有一份实现**：评测 rollout、verl 训练、冷启动轨迹生成都调用同一个 `env` 包。工具的返回格式、预算和奖励不会在训练和评测之间出现偏差。
+2. **rollout 和打分分开**：所有系统（包括非 LLM 的 B0、B3）都只负责产出 `specs/eval.md` §3 格式的轨迹文件，指标只由一个打分器计算。
+3. **奖励和指标共用实现**：训练奖励里的 NDCG@10 直接调用 `eval/metrics.py`，不另写一份。
 
 ## 2. 目录结构
 
 ```
 src/searchtune/
-  cli.py              # 统一入口：python -m searchtune <子命令>
-  config.py           # YAML → dataclass，未知字段直接报错
-  runs.py             # run_id 生成、run 目录、git 状态检查
+  cli.py                # 统一入口：python -m searchtune <子命令>
+  config.py             # YAML → dataclass，未知字段直接报错
+  runs.py               # run_id 生成、run 目录、git 状态检查
   data/
-    schema.py         # Sample 数据结构与校验
-    prepare.py        # raw → processed，清洗、切分、MANIFEST、STATS
-  text/
-    render.py         # Sample → chat messages（含截断，见 training §3）
-    parse.py          # 模型输出 → 档位或 INVALID
-  infer/
-    llm.py            # HF transformers + PEFT，直答模式取答案位置 logits
-    llm_vllm.py       # 仅推理模式（E8）使用，可选
-    baselines.py      # B0 多数类
+    prepare.py          # raw → catalog、pools、splits、MANIFEST、STATS
+    pools.py            # 商品池构造（specs/data.md §5）
+    slices.py           # 难例切片规则（specs/eval.md §2.3）
+  env/
+    pool_index.py       # 单个商品池上的 BM25 索引，结果确定
+    tools.py            # search / view / submit 的实现与返回格式（training §2）
+    episode.py          # 一个 episode 的状态：预算、已展示商品、状态码
+    reward.py           # L1 / L2 奖励（training §4），调用 eval/metrics.py
+  agent/
+    rollout.py          # 评测用 rollout：模型 + env → 轨迹文件
+    verl_tools.py       # 把 env 的工具注册成 verl 的工具
+    verl_agent_loop.py  # L1 的单轮 AgentLoop；L2 复用 verl 的 ToolAgentLoop
+  baselines/
+    bm25_raw.py         # B0
+    rerank.py           # B3：BM25 前 30 + DeBERTa 重排
   eval/
-    metrics.py        # P/R/F1、混淆矩阵、PR-AUC
-    ndcg.py           # specs/eval.md §2.3
-    bootstrap.py      # 按 query 配对 bootstrap
-    score.py          # 预测文件 + gold → metrics.json + EXPERIMENTS 行
+    metrics.py          # NDCG@10、E-Recall@10、BadRate@3 等
+    bootstrap.py        # 按 query 配对 bootstrap
+    score.py            # 轨迹文件 + 商品池 → metrics.json + EXPERIMENTS 行
   train/
-    sft.py            # TRL SFTTrainer + LoRA
-    grpo.py           # TRL GRPOTrainer
-    reward.py         # 代价矩阵奖励，复用 text/parse.py
-    cross_encoder.py  # B3
-configs/              # 每个实验一个 YAML，随代码提交
-prompts/              # relevance_v<N>.txt、sft_input_v<N>.txt
-data/                 # 见 specs/data.md §7
-runs/                 # 运行产物，gitignore
+    gen_traj.py         # B4 采样 + 拒绝采样 → SFT 数据
+    cross_encoder.py    # B3 的 DeBERTa 训练
+configs/                # 每个实验一个 YAML（含 verl 配置），随代码提交
+prompts/                # agent_v<N>.txt、rewrite_v<N>.txt
+data/                   # 见 specs/data.md §8
+runs/                   # 运行产物，gitignore
 tests/
 ```
 
 ## 3. 关键接口
 
 ```python
-Label = Literal["E", "S", "C", "I"]
+Label = Literal["E", "S", "C", "I", "U"]
+Status = Literal["ok", "format_error", "budget_exhausted", "truncated"]
 
-def render(sample: Sample, template: str, max_product_tokens: int, tokenizer) -> list[dict]
-def parse_label(text: str) -> Label | Literal["INVALID"]
-def reward(gold: Label, completion: str, matrix: RewardMatrix) -> float   # 内部调用 parse_label
-def score(pred_path: Path, gold_path: Path) -> Metrics
-def paired_bootstrap(pred_a: Path, pred_b: Path, gold_path: Path,
+class Episode:
+    def __init__(self, pool: Pool, catalog: Catalog, env_cfg: EnvConfig): ...
+    def search(self, query: str) -> str          # 返回给 Agent 的文本
+    def view(self, product_id: str) -> str
+    def submit(self, product_ids: list[str]) -> None
+    @property
+    def result(self) -> EpisodeResult            # submitted、status、调用计数
+
+def reward_l1(result: EpisodeResult, pool: Pool) -> float
+def reward_l2(result: EpisodeResult, pool: Pool, cfg: RewardConfig) -> float
+def ndcg_at_10(submitted: list[str], pool: Pool) -> float
+def score(traj_path: Path, pools_path: Path) -> Metrics
+def paired_bootstrap(traj_a: Path, traj_b: Path, pools_path: Path,
                      metric: str, n: int, seed: int) -> CI
 ```
 
-数据结构：
+- `Pool` 持有标签和增益，但 `Episode` 暴露给 Agent 的方法只返回商品文本。
+- `metrics.json`：`specs/eval.md` §2 的全部指标，再加 `run_id`、`split`、`data_version`、`env_version`、`prompt_version`、`git_commit`、`hardware`。
 
-- `Sample`：字段与 `specs/data.md` §3 一致
-- 预测行：字段与 `specs/eval.md` §3 一致
-- `metrics.json`：`specs/eval.md` §2 的全部指标，再加 `run_id`、`split`、`data_version`、`prompt_version`、`git_commit`、`hardware`（GPU 型号）
+## 4. 与 verl 的集成
 
-## 4. 直答模式的推理实现
-
-- 用 HF `generate`（greedy，`max_new_tokens = 8`，`output_scores=True`），一次拿到生成文本和每一步的 logits。
-- `pred` 来自对生成文本的 `parse_label`；`probs` 取第一个档位 token 出现位置的 logits，只在 E/S/C/I 四个 token 上做 softmax。
-- 不用“只在四个 token 里取 argmax”的约束解码，因为那会把格式错误藏起来，而 `specs/eval.md` 要求如实报告解析失败率。
+- L2：用 verl 的 ToolAgentLoop（`rollout.mode = async`，`multi_turn.enable = true`，`format = hermes`），工具由 `verl_tools.py` 注册。每个 rollout 开始时按 query_id 创建一个 `Episode`，episode 结束后由 `reward_l2` 计算奖励。
+- L1：实现一个单轮 AgentLoop：生成改写 → 调 `Episode.search` → 自动提交 → `reward_l1`。
+- 工具返回的 token 在训练时不计 loss（verl 的 response mask）。
+- 评测不经过 verl：`agent/rollout.py` 用 vLLM 直接推理并调用同一个 `Episode`，保证 greedy 评测可以复现。两条路径的工具文本有一致性测试（§8）。
 
 ## 5. 配置与运行
 
 - 每次运行由一个 YAML 配置驱动，命令行只接收配置路径和少量覆盖项。
 - `run_id = <实验ID>-<data_version>-<短 commit hash>`；工作区有未提交改动时，在 run_id 后加 `-dirty`。
 - 运行开始时把最终生效的配置写入 `runs/<run_id>/config.yaml`。
-- 子命令：`prepare`、`infer`、`score`、`compare`、`train-sft`、`train-grpo`、`train-ce`。
+- 子命令：`prepare`、`rollout`、`score`、`compare`、`gen-traj`、`train-ce`、`train`（转调 verl，L1 / L2 / SFT 由配置区分）。
 
 ## 6. 护栏
 
@@ -91,22 +104,25 @@ def paired_bootstrap(pred_a: Path, pred_b: Path, gold_path: Path,
 
 | 规则来源 | 检查 |
 |---|---|
-| eval §1 测试集只读 | `infer --split test` 必须显式加 `--allow-test`；工作区有未提交改动时拒绝运行 |
-| data §5 防泄漏 | `prepare` 结束时断言各 split 的 query 两两不相交，规范化后的 query 不重叠 |
-| training §9 数据隔离 | `prepare` 断言 `sft_main` 与 `grpo_main` 的 query 不相交 |
-| data §6 版本化 | 训练和推理读取数据时校验文件 sha256 与 MANIFEST 一致 |
-| eval §3 解析失败计入分母 | `score` 遇到 `INVALID` 按错误计算，有单元测试 |
+| eval §1 测试集只读 | `rollout --split test` 必须显式加 `--allow-test`；工作区有未提交改动时拒绝运行 |
+| eval §9 不泄漏标签 | 单元测试：工具返回的文本中不出现 `label`、`gain`、`source` 字段的值 |
+| data §6 防泄漏 | `prepare` 结束时断言各 split 的 query 两两不相交，规范化后的 query 不重叠 |
+| data §5 商品池规则 | `prepare` 断言干扰商品与 L(q) 不相交，并满足 Jaccard 排除规则 |
+| training §6 数据隔离 | `prepare` 断言 `sft_traj` 与 `rl_l2` 不相交，三份训练列表都与 dev、test 不相交 |
+| data §7 版本化 | 训练、rollout、打分读取数据时校验 sha256 与 MANIFEST 一致 |
+| eval §3 环境版本 | 轨迹文件的环境版本与当前代码不一致时，`score` 拒绝打分 |
 
 ## 7. 环境
 
 - Python 3.11，用 `uv` 管理依赖，`uv.lock` 进 git。
-- 主要依赖：`torch`、`transformers`、`peft`、`trl`、`datasets`、`pyarrow`、`pyyaml`、`pytest`；`scikit-learn` 只在测试里用作参照；`vllm` 是可选依赖，只有 E8 需要。
+- 主要依赖：`verl`、`vllm`（或 `sglang`）、`torch`、`transformers`、`peft`、`rank-bm25`（或同类实现）、`pyarrow`、`pyyaml`、`pytest`。verl、vLLM 和 PyTorch 的版本一起锁定，以 verl 官方推荐的组合为准。
+
 ### 7.1 运行平台（DEC-009）
 
 | 平台 | 硬件 | 负责 |
 |---|---|---|
-| 本地 WSL2 Ubuntu | RTX 5060 Laptop 8GB，24GB 内存 | 写代码、数据管线、打分器、单元测试、`dev-quick` 冒烟 |
-| 云端 AutoDL | RTX 4090 24GB | 所有正式结果：B1、B3 的正式结果，E1–E8 的训练与评测 |
+| 本地 WSL2 Ubuntu | RTX 5060 Laptop 8GB，24GB 内存 | 写代码、数据管线、环境、打分器、单元测试；用 Qwen3.5-0.8B 在 `dev-quick` 上冒烟 |
+| 云端 AutoDL | RTX 4090 24GB；L2 不够时换 48–80GB 单卡 | 所有正式结果：baseline、轨迹生成、全部训练与评测 |
 
 **判断标准**：结果会进入比较、checkpoint 选择或验收判定的，一律在云端跑。本地跑出的数字只用来确认代码能跑通，不写进 `EXPERIMENTS.md` 的结果栏。
 
@@ -127,5 +143,6 @@ def paired_bootstrap(pred_a: Path, pred_b: Path, gold_path: Path,
 
 ## 8. 测试
 
-- 单元测试覆盖：`parse_label`、`render` 的截断、`reward` 的 16 个格子加解析失败、全部指标、bootstrap 的确定性、各项护栏检查。
-- 冒烟测试：用一个极小模型在 `dev-quick` 的 10 条样本上跑通 `infer → score`，在 CI 或本地均可运行，不需要 GPU。
+- 单元测试覆盖：BM25 结果的确定性、三个工具的返回格式和截断、预算与状态码、奖励函数的各种情况、全部指标、bootstrap 的确定性、各项护栏检查。
+- 一致性测试：同一个 episode，经由 verl 工具注册和经由 `agent/rollout.py` 调用，工具返回的文本逐字一致；奖励函数与打分器的 NDCG 结果一致。
+- 冒烟测试：用 Qwen3.5-0.8B 在 `dev-quick` 的 10 个 query 上跑通 `rollout → score`，以及 L1 的 2 个训练步。
