@@ -15,7 +15,7 @@
 - 数据处理管线：原始数据 → 统一 schema → 按 query 切分 → 版本化
 - 相关性档位的任务定义与判定标准（`specs/labeling-guideline.md`）
 - 评测管线与 baseline（`specs/eval.md`）
-- SFT，以及一种 SFT 之后的后训练方法（见 D4）
+- SFT，以及 SFT 之后的 GRPO 后训练（见 D4）
 - 误差分析与实验记录
 
 不做（Non-goals）：
@@ -62,7 +62,7 @@
 | D1 | 语言与数据源 | 英文，Amazon Shopping Queries Dataset（ESCI）的 `us` locale；有真实人工标签，省掉标注成本 | 已确认（2026-10-31） |
 | D2 | 任务形式 | 逐对四档分类（E/S/C/I），排序指标由档位概率派生，不单独训练排序模型 | 已确认（2026-10-31） |
 | D3 | 算力 | 单卡 24GB 显存；基座 ≤ 4B，LoRA 微调 | 已确认（2026-10-31） |
-| D4 | 后训练深度 | SFT + 一种偏好或强化方法（DPO 或 GRPO 二选一，在 `specs/training.md` 中决定） | 已确认（2026-10-31） |
+| D4 | 后训练深度 | SFT + GRPO（理由见 `specs/training.md` §1；原先在 DPO 与 GRPO 之间二选一） | 已确认（2026-10-31） |
 
 没选中文的原因：没有现成的高质量公开分档数据，需要用 LLM 合成或标注训练数据；若日后扩展中文，`specs/data.md` 和 `specs/labeling-guideline.md` 需要重写对应章节，测试集的可信度也要单独论证。
 
@@ -74,7 +74,7 @@
 | `specs/data.md` | 数据来源、schema、切分、版本 | 草稿 |
 | `specs/labeling-guideline.md` | 相关性档位定义与判定流程 | 草稿 |
 | `specs/eval.md` | 评测集、指标、baseline、验收阈值 | 草稿 |
-| `specs/training.md` | 训练方法、实验矩阵 | 未开始 |
+| `specs/training.md` | 训练方法、实验矩阵 | 草稿 |
 | `DESIGN.md` | 代码结构与接口 | 未开始 |
 | `TASKS.md` | 任务拆分与验收 | 未开始 |
 | `DECISIONS.md` | 关键决策记录 | 未开始 |
