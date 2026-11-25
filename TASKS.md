@@ -34,60 +34,60 @@ T1–T5、T5b 全部在本地纯 CPU 环境独立开发与验收，**不被 T0 �
   - [ ] training §3.1 的 5 项在云端逐项有结论；**出现任何框架兼容阻力就在半天内切换纯文本备选底座**，并记入 `DECISIONS.md`
   - [ ] 在 4090 上用 verl 跑一个玩具多轮工具任务的若干训练步，记录显存峰值和每步耗时，据此决定 L2 是否需要换更大的卡
 
-### T1 项目骨架 · 待办 · P0（本地）
+### T1 项目骨架 · 完成 · P0（本地）
 - 依赖：无
 - 依据：`DESIGN.md` §2、§5、§7
 - 产出：`pyproject.toml`（分层依赖）、`src/searchtune/` 的目录结构、`config.py`、`runs.py`、`cli.py`、`.gitignore`、pytest 配置
 - 验收：
-  - [ ] `python -m searchtune --help` 列出全部 7 个子命令
-  - [ ] 配置文件里有未知字段时报错（有单元测试）
-  - [ ] 工作区有未提交改动时，run_id 带 `-dirty`（有单元测试）
-  - [ ] `data/raw/`、`data/processed/`、`runs/` 已加入 gitignore
-  - [ ] 仅基础依赖时 `uv sync` 能装好并跑通全部核心单元测试（`torch/transformers/peft`、`vllm/verl` 在 optional extras 中）
+  - [x] `python -m searchtune --help` 列出全部 7 个子命令
+  - [x] 配置文件里有未知字段时报错（有单元测试）
+  - [x] 工作区有未提交改动时，run_id 带 `-dirty`（有单元测试）
+  - [x] `data/raw/`、`data/processed/`、`runs/` 已加入 gitignore
+  - [x] 仅基础依赖时 `uv sync` 能装好并跑通全部核心单元测试（`torch/transformers/peft`、`vllm/verl` 在 optional extras 中）
 
-### T2 数据下载与核对 · 待办 · P0（本地）
+### T2 数据下载与核对 · 完成 · P0（本地）
 - 依赖：T1
 - 依据：`specs/data.md` §1
 - 产出：数据下载脚本；`data/MANIFEST.json` 中原始文件的 sha256 和许可证
 - 验收：
-  - [ ] 实际字段与 data §1 逐项核对；不一致的地方**先改 spec**，并在交付说明中列出
-  - [ ] 许可证已核对并记录
+  - [x] 实际字段与 data §1 逐项核对；不一致的地方**先改 spec**，并在交付说明中列出
+  - [x] 许可证已核对并记录
 
-### T3 数据管线与商品池 · 待办 · P0（本地）
+### T3 数据管线与商品池 · 完成 · P0（本地）
 - 依赖：T2
 - 依据：`specs/data.md` §3–§9，`specs/eval.md` §2.3，`specs/training.md` §6，`DESIGN.md` §6
 - 产出：`prepare` 子命令；`catalog.jsonl`；三个评测 split 和三份训练列表；每个 split 的商品池；难例切片成员列表；`data/STATS.md`
 - 验收：
-  - [ ] data §9 的 5 项全部满足
-  - [ ] training §10 中关于列表不相交的检查已实现
-  - [ ] STATS 中写明难例切片的规则和各切片的 query 数
+  - [x] data §9 的 5 项全部满足
+  - [x] training §10 中关于列表不相交的检查已实现
+  - [x] STATS 中写明难例切片的规则和各切片的 query 数
 
-### T4 打分器 · 待办 · P0（本地）
+### T4 打分器 · 完成 · P0（本地）
 - 依赖：T1（可与 T2、T3 并行）
 - 依据：`specs/eval.md` §2、§3、§6、§9，`DESIGN.md` §3
 - 产出：`eval/` 模块；`score` 与 `compare` 子命令
 - 验收：
-  - [ ] eval §9 中与打分器相关的 4 项满足（指标手算一致、bootstrap 确定性、非 ok 计入分母、一条命令出全部指标）
-  - [ ] 环境版本与当前代码不一致的轨迹文件被拒绝打分（有测试）
+  - [x] eval §9 中与打分器相关的 4 项满足（指标手算一致、bootstrap 确定性、非 ok 计入分母、一条命令出全部指标）
+  - [x] 环境版本与当前代码不一致的轨迹文件被拒绝打分（有测试）
 
-### T5 环境与工具 · 待办 · P0（本地）
+### T5 环境与工具 · 完成 · P0（本地）
 - 依赖：T3、T4
 - 依据：`specs/training.md` §2、§4，`DESIGN.md` §3、§6、§8
 - 产出：`env/` 包；`env_v1`
 - 验收：
-  - [ ] 三个工具的返回格式、截断、预算和状态码有单元测试
-  - [ ] 标签不泄漏测试通过（eval §9）
-  - [ ] 奖励函数满足 training §10 中的两项测试
-  - [ ] BM25 结果确定：同一输入两次调用逐字一致
+  - [x] 三个工具的返回格式、截断、预算和状态码有单元测试
+  - [x] 标签不泄漏测试通过（eval §9）
+  - [x] 奖励函数满足 training §10 中的两项测试
+  - [x] BM25 结果确定：同一输入两次调用逐字一致
 
-### T5b B0 原始 query BM25 基线 · 待办 · P0（本地）
+### T5b B0 原始 query BM25 基线 · 完成 · P0（本地）
 - 依赖：T3、T4、T5
 - 依据：`specs/eval.md` §3、§5，`DESIGN.md` §6
 - 产出：`baselines/bm25_raw.py`；B0 在 dev-quick、dev（以及锁定时的 test）上的轨迹文件与指标
 - 验收：
-  - [ ] `--split test` 不加 `--allow-test` 时拒绝运行；工作区有未提交改动时也拒绝（有测试）
-  - [ ] 轨迹文件符合 eval §3，能被 `score` 直接打分
-  - [ ] 结果写入 `EXPERIMENTS.md`
+  - [x] `--split test` 不加 `--allow-test` 时拒绝运行；工作区有未提交改动时也拒绝（有测试）
+  - [x] 轨迹文件符合 eval §3，能被 `score` 直接打分
+  - [x] 结果写入 `EXPERIMENTS.md`（dev-quick、dev 已跑；test 上的 B0 按 eval §7 在锁定时一并跑，尚未跑）
 
 ### T6 rollout、B1、B2、B4 与 prompt 迭代 · 待办 · P0（云端）
 - 依赖：T0、T5
