@@ -71,7 +71,7 @@ train 只为 `rl_l1 ∪ sft_traj ∪ rl_l2` 中的 query 建池（DEC-015）。
 | negation | query 词中含 without / no / free / non / not / excluding / except 之一（连字符拆词，如 sugar-free） | 15 | 94 |
 | quantity_spec | 含“数字 + 单位”（pack、count、oz、lb、inch、gb、v、w 等）、`数字x数字`，或含 pack / size / xl / xxl / small / medium / large | 35 | 90 |
 | compat_model | 含 for 且其后任一词含数字；或含字母数字混合的型号串（长度 ≥ 3，如 a15、ps5、x570） | 18 | 65 |
-| brand | query 中连续 1–3 个词等于目录中某个品牌（该品牌至少对应 brand_min_count 个商品）；单词品牌可能与普通词重名，存在噪声 | 210 | 465 |
+| brand | query 中连续 1–3 个词等于目录中某个品牌（该品牌至少对应 brand_min_count 个商品）；单词品牌可能与普通词重名，存在噪声 | 73 | 163 |
 | long | 词数 ≥ long_query_words（默认 6） | 60 | 138 |
 
-品牌集合大小（目录中至少 5 个商品的品牌）：41,442。
+品牌集合大小（目录中至少 50 个商品的品牌）：2,590。

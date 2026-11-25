@@ -39,11 +39,11 @@
     },
     "slices/dev.json": {
      "rows": null,
-     "sha256": "28bdc4adbf3f630e8d3aac9000b0abc92ff15cddef35d1238b93d15d67a47acd"
+     "sha256": "0ec6794eb715a61724b88e0267fc178c8b669975b4eb577b25207ba0d9d3f61a"
     },
     "slices/test.json": {
      "rows": null,
-     "sha256": "9ce880bed002117af434be8262c1cb66132e6c365be89babaeb259589f9e5dec"
+     "sha256": "8126a1da6571d2e1c49a5785047db558858bd408c1c26ab1bea7d1c3393b73bd"
     },
     "splits/dev-quick.txt": {
      "rows": 200,
@@ -74,10 +74,10 @@
      "sha256": "d42e09b50d6a3ad261d519cbb67f5e6a075d2f3de46b5b14b8ace17cd9ddffb9"
     }
    },
-   "code_commit": "fdf738b85d2cbb5206f14522786695216a6e08d9",
+   "code_commit": "7f0f5bc49b1d2411f6360d590404133370968567",
    "code_dirty": true,
    "params": {
-    "brand_min_count": 5,
+    "brand_min_count": 50,
     "data_version": "v1",
     "jaccard_threshold": 0.5,
     "locale": "us",
