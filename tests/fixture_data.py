@@ -39,12 +39,14 @@ EXAMPLES_SCHEMA = pa.schema(
 N_PRODUCTS = 400
 N_TRAIN_Q, N_TEST_Q = 50, 30
 ALL_I_QUERY = 80  # 一个只有 I 标注的 query：不建池
-# test query 为 51..80，其中 61..80 是 small_version=1；去掉 ALL_I_QUERY 后可建池的小版本 test 有 19 个
+# test query 为 51..80，其中 61..80 是 small_version=1；去掉 ALL_I_QUERY 和“小版本不一致”的 70 号后，可进 test 的有 18 个
+CROSS_SPLIT_QUERY = 7  # 同一 query_id 同时出现在 train 与 test（真实 ESCI 里有 1 个这样的 query）
+MIXED_SMALL_QUERY = 70  # 各行 small_version 不一致（真实 ESCI 里有 7 个）
 
 
 def fixture_config(**kw) -> DataConfig:
     base = dict(
-        n_test=19, n_dev=8, n_dev_quick=3, n_rl_l1=10, n_sft_traj=8, n_rl_l2=8,
+        n_test=18, n_dev=8, n_dev_quick=3, n_rl_l1=10, n_sft_traj=8, n_rl_l2=8,
         n_bm25_distractors=5, n_random_distractors=5, brand_min_count=2,
     )
     base.update(kw)
@@ -105,6 +107,12 @@ def build_raw(raw_dir: Path) -> dict:
             r["query"] = "Red  Shoes Men"
         if r["query_id"] == 65:
             r["query"] = "red shoes men"
+    for r in rows:
+        if r["query_id"] == MIXED_SMALL_QUERY:
+            r["small_version"] = 0
+            break
+    qtext7 = next(r for r in rows if r["query_id"] == CROSS_SPLIT_QUERY)["query"]
+    add(CROSS_SPLIT_QUERY, qtext7, "P0399", "E", "test", 1)
     # 清洗用例：完全重复、标签冲突、关联不上商品、非 us 样本
     r0 = next(r for r in rows if r["query_id"] == 2)
     add(r0["query_id"], r0["query"], r0["product_id"], r0["esci_label"], "train", 0)  # 重复，标签一致
@@ -116,4 +124,5 @@ def build_raw(raw_dir: Path) -> dict:
     return {
         "dup_query": 2, "conflict_query": 3, "conflict_pid": r1["product_id"],
         "overlap_train_q": "5", "overlap_test_q": "65", "all_i_query": str(ALL_I_QUERY),
+        "cross_split_query": str(CROSS_SPLIT_QUERY), "mixed_small_query": str(MIXED_SMALL_QUERY),
     }

@@ -17,6 +17,7 @@
 | DEC-013 | 训练路线与奖励：L1 GRPO；L2 冷启动 SFT + GRPO，奖励 v1 | 暂定 |
 | DEC-014 | 主指标 NDCG@10，并与预算对齐的传统流水线对比 | 已定 |
 | DEC-015 | MVP 范围分级、叙事聚焦与本地/云端解耦 | 已定 |
+| DEC-016 | ESCI 实测与 spec 假设的差异：跨 split 的 query_id、small_version 不一致 | 已定 |
 
 ---
 
@@ -136,6 +137,13 @@
   - 砍掉 B3 或效率基准：B3 是“为什么要 Agent”的质疑入口，效率基准是回答成本与延迟边界的唯一证据，二者都保留，只砍扩展性实验。
 - **后果**：MVP 的结论面更窄、更扎实；P2 实验若没做，README 如实标注“未做”，不写成“进行中”。本地开发不再受云端预约影响。`T0` 推迟到真正需要 GPU 时再做，但止损红线使它不会无限期吞时间。
 - **同步修改**：`README.md`、`CONSTITUTION.md`（§1、§2、§3、§5、§6、§7）、`TASKS.md`、`DESIGN.md`（§2、§7）、`specs/eval.md`（§2.2、§5、§8.2、新增 §10）、`specs/training.md`（§3.1、§7）、`specs/data.md`（§4、§5）。
+
+## DEC-016 ESCI 实测与 spec 假设的差异 · 已定 · 2026-11-25
+
+- **背景**：T2 下载真实 parquet 后核对（`specs/data.md` §1 要求“不一致就先改 spec”）。字段、类型、label 取值（E/S/C/I）与 spec 一致，许可证 Apache-2.0；有两处假设不成立：us 样本中有 **1 个 `query_id`（79706）同时出现在 `train` 与 `test`**，有 **7 个 query 的各行 `small_version` 取值不一致**。
+- **决定**：跨 split 的 query_id 整个删除并计数（宁可少一个 query，也不让同一 query 的标签同时出现在训练侧和评测侧）；“`small_version == 1` 的 query”定义为全部样本行都是 1。同一 `query_id` 对应多个文本仍报错（实测为 0）。
+- **其他方案**：按多数行归属——对 79706 没有可靠依据，且保留它违背“零泄漏”原则。
+- **后果**：`specs/data.md` §4、§6 已同步；删除数量写入 `data/STATS.md`。影响面极小（1 + 7 个 query）。
 
 ---
 

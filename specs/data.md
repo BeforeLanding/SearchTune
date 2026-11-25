@@ -18,6 +18,8 @@
 
 两表按 `(product_id, product_locale)` 关联。
 
+**2026-11-25 已用真实文件核对（T2）**：字段名与类型和上面一致（examples 另有一个 pandas 遗留列 `__index_level_0__`，不使用）；`esci_label` 取值为 `E/S/C/I`；许可证 Apache-2.0（esci-data 仓库 LICENSE 与 README）。文件在 Git LFS，下载用 `scripts/download_esci.py`。两处与假设不符，见 `DECISIONS.md` DEC-016 和本文 §4、§6。
+
 > 本 spec 不写数据规模和标签分布的具体数字。下载后由数据管线统计，写入 `data/STATS.md`。
 
 ## 2. 标签与增益
@@ -63,6 +65,7 @@ E/S/C/I 的增益沿用 KDD Cup 2022 Task 1 的设定。
 - 所有抽样 `seed = 20261031`。
 - `train` 的商品池只为三份训练列表（`rl_l1 ∪ sft_traj ∪ rl_l2`，见 `specs/training.md` §6）中的 query 构造（DEC-015）；train 的其余 query 没有任何环节会用到，不建池。`dev`、`dev-quick`、`test` 的池全量构造。
 - 每个 split 的 query_id 列表写入 `data/splits/<split>.txt`（**进 git**，体积小，是切分的唯一事实来源）。
+- “`small_version == 1` 的 query”指该 query 的**全部**样本行的 `small_version` 都是 1（真实数据中有 7 个 query 的各行取值不一致，不进 test 候选）。
 - 选 `small_version == 1` 是因为这部分 query 更难，区分度更高。
 - 抽样实现：把候选 query 按 `sha256("<seed>:<用途>:<query_id>")` 排序后取前 n 个，结果与输入顺序、平台无关。
 - 抽样的候选范围都先扣除“没有任何 E/S/C 的 query”（§5.4），保证 dev/test 的规模不被事后过滤缩水。
@@ -114,6 +117,7 @@ BM25 检索出的干扰商品里，可能混有对 q 真正相关、只是 ESCI 
 1. 过滤 `product_locale != "us"`
 2. 关联商品表；关联不上的样本删除并计数
 3. 完全重复的 (query_id, product_id) 只保留一条；若重复项标签冲突，整组删除并计数
+3b. **跨 split 的 query_id**：同一个 `query_id` 同时出现在 ESCI 的 `train` 与 `test` 的，整个 query 删除并计数（真实数据中有 1 个，`query_id = 79706`）；同一 `query_id` 对应多个 query 文本则管线报错（真实数据中没有）
 4. **跨 split query 去重**：query 规范化（小写、去首尾空白、合并连续空白）后，若 train 中的 query 与 dev/test 中的相同，从 train 删除该 query
 5. 检查 train/dev/test 的 query_id 交集为空，否则管线报错
 

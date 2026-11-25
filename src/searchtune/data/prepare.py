@@ -78,7 +78,7 @@ def clean_bullets(s: str | None) -> str | None:
 class QueryRec:
     query: str
     esci_split: str
-    small: bool
+    small: bool = True  # 该 query 的全部样本行 small_version 都是 1
     labels: dict[str, str] = field(default_factory=dict)  # product_id → E/S/C/I
 
 
@@ -99,7 +99,8 @@ def load_and_clean(examples_path: Path, product_ids: set[str], cfg: DataConfig, 
     seen: dict[tuple[str, str], str] = {}
     conflicts: set[tuple[str, str]] = set()
     n_no_product = n_dup_same = 0
-    text_mismatch = split_mismatch = 0
+    text_mismatch = 0
+    cross_split: set[str] = set()  # 同一 query_id 同时出现在 ESCI 的 train 与 test（真实数据里有）
     for i in range(n):
         pid = cols["product_id"][i]
         if pid not in product_ids:
@@ -111,11 +112,12 @@ def load_and_clean(examples_path: Path, product_ids: set[str], cfg: DataConfig, 
             raise ValueError(f"未知的 esci_label {lab!r}")
         rec = recs.get(qid)
         if rec is None:
-            rec = recs[qid] = QueryRec(cols["query"][i], cols["split"][i], False)
+            rec = recs[qid] = QueryRec(cols["query"][i], cols["split"][i])
         else:
             text_mismatch += rec.query != cols["query"][i]
-            split_mismatch += rec.esci_split != cols["split"][i]
-        rec.small = rec.small or cols["small_version"][i] == 1
+            if rec.esci_split != cols["split"][i]:
+                cross_split.add(qid)
+        rec.small = rec.small and cols["small_version"][i] == 1
         key = (qid, pid)
         if key in seen:
             if seen[key] == lab:
@@ -128,14 +130,14 @@ def load_and_clean(examples_path: Path, product_ids: set[str], cfg: DataConfig, 
     stats["dropped_duplicate_same_label"] = n_dup_same
     stats["conflict_groups_dropped"] = len(conflicts)
     stats["query_text_mismatch"] = text_mismatch
-    stats["query_split_mismatch"] = split_mismatch
-    if text_mismatch or split_mismatch:
-        raise ValueError("同一 query_id 的 query 文本或 split 不一致，数据与假设不符，请先核对 specs/data.md")
+    stats["dropped_cross_split_queries"] = len(cross_split)
+    if text_mismatch:
+        raise ValueError("同一 query_id 对应多个 query 文本，数据与假设不符，请先核对 specs/data.md")
     for (qid, pid), lab in seen.items():
         if (qid, pid) not in conflicts:
             recs[qid].labels[pid] = lab
     # 标签冲突整组删除后，可能留下没有任何标注的 query
-    return {q: r for q, r in recs.items() if r.labels}
+    return {q: r for q, r in recs.items() if r.labels and q not in cross_split}
 
 
 @dataclass
@@ -377,6 +379,7 @@ def render_stats(s: dict, cfg: DataConfig) -> str:
         ("关联不上商品表（删除样本行）", s["dropped_no_product"]),
         ("(query_id, product_id) 重复且标签一致（删除多余行）", s["dropped_duplicate_same_label"]),
         ("(query_id, product_id) 标签冲突（整组删除，组数）", s["conflict_groups_dropped"]),
+        ("query_id 同时出现在 ESCI 的 train 与 test（整个 query 删除）", s["dropped_cross_split_queries"]),
         ("无 E/S/C 的 query（不建池，抽样前过滤）", s["dropped_no_esc_queries"]),
         ("dev 候选中因与 test 规范化 query 相同而排除的 query", s["dev_excluded_by_test_overlap"]),
         ("train 中因与 dev/test 规范化 query 相同而删除的 query", s["dropped_train_query_overlap"]),

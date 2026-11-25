@@ -45,6 +45,15 @@ def test_split_sizes_and_disjointness(prepared):
     assert prepared["facts"]["all_i_query"] not in sum(ids.values(), [])  # 无 E/S/C 的 query 不进任何 split
 
 
+def test_real_data_quirks_cross_split_query_and_mixed_small_version(prepared):
+    """真实 ESCI 里有 1 个 query_id 同时在 train 与 test、7 个 query 的 small_version 不一致（specs/data.md §6）。"""
+    f, lay = prepared["facts"], prepared["layout"]
+    every = {n: set(read_id_list(lay.split_list(n))) for n in ("train", "dev", "test")}
+    assert all(f["cross_split_query"] not in s for s in every.values())
+    assert prepared["stats"]["dropped_cross_split_queries"] == 1
+    assert f["mixed_small_query"] not in every["test"]  # 只有全部样本行都是 small_version=1 才算
+
+
 def test_test_split_only_small_version_queries(prepared):
     ids = set(read_id_list(prepared["layout"].split_list("test")))
     assert ids and all(int(q) > 60 for q in ids)  # fixture 里只有 61 号之后是 small_version=1
