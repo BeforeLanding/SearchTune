@@ -27,7 +27,9 @@
 | `view` | `product_id: str` | 标题、品牌、颜色、卖点（卖点截断到 200 token）；不含商品描述 |
 | `submit` | `product_ids: list[str]` | 结束 episode。按顺序取前 10 个；去掉重复项，不在池中的 id 丢弃并计数 |
 
-- BM25 同分时按 `product_id` 排序，保证结果确定。
+- BM25 同分时按 `product_id` 排序，保证结果确定。实现：k1 = 1.5，b = 0.75，idf = ln(1 + (N − df + 0.5) / (df + 0.5))，分词为小写后的 `[a-z0-9]+`，得分取 9 位小数后再比较，只返回得分 > 0 的商品（匹配不足 10 个就少于 10 个）。
+- **“token” 在 env_v1 里指空白分隔的词**，不依赖具体分词器（环境包因此不需要 `transformers`）；被截断的文本末尾加 ` ...`。
+- `submit`：参数必须是字符串列表，否则记 `format_error`；去重（保留首次出现）、丢弃池外 id 后取前 10。去重后为空的提交仍是 `ok`（NDCG 为 0）。
 - 缺失字段显示为 `N/A`。
 - **返回内容里永远不含 `label`、`gain`、`source`**。
 
@@ -35,7 +37,7 @@
 
 | 项 | 值 |
 |---|---|
-| 工具调用上限 | `search` 和 `view` 合计 6 次。用完后环境提示“必须提交”，再给一轮机会；仍未提交记为 `budget_exhausted` |
+| 工具调用上限 | `search` 和 `view` 合计 6 次（空 query、池外 `view` 也各占一次）。第 6 次调用的返回末尾附 `[Tool budget used up. You must call submit now.]`，再给一轮机会：这一轮里再调用 `search` / `view`（该调用被拒绝、不计数）或结束时没有 `submit`，记为 `budget_exhausted` |
 | 每轮生成上限 | 512 token |
 | 整条轨迹上下文上限 | 6144 token，超出记为 `truncated` |
 | 工具调用格式 | 模型原生的函数调用格式（hermes），由 verl 的 ToolAgentLoop 解析；解析失败记为 `format_error` |

@@ -56,7 +56,7 @@
 
 所有被评测的系统（包括非 LLM 的 baseline）都先产出**轨迹文件**，再由独立的打分脚本计算指标。
 
-轨迹文件每行一个 episode：
+轨迹文件**第一行是元数据** `{"_meta": {...}}`（必含 `env_version`、`data_version`、`split`；另有 `run_id`、`system`、`prompt_version`、`git_commit`、`hardware`），其后每行一个 episode：
 
 ```json
 {"query_id": "...", "submitted": ["pid1", "pid2"], "status": "ok",
@@ -71,6 +71,9 @@
 - **解码**：评测时 greedy（temperature = 0）。工具全部是确定性的（BM25 同分时按 `product_id` 排序），因此同一模型的评测结果可以复现。
 - **环境版本**：轨迹文件的元数据必须记录环境版本（工具定义、预算、返回格式；见 `specs/training.md` §2）。
 - 非 LLM baseline 的 `turns` 为空，只填 `submitted`。
+- `score` 在以下情况**拒绝打分**，而不是悄悄缩小分母：环境版本与当前代码不一致、数据版本或 split 与商品池不一致、轨迹缺少商品池中的 query、含池外 query、query 重复。
+- 提交列表在打分前按 `training.md` §2.1 的规则规范化（去重、丢弃池外 id、取前 10），与环境的 `submit` 共用同一个函数。
+- 池中没有 E 的 query，E-Recall@10 无定义，只在有定义的 query 上取平均（报告里附有定义的 query 数）；U 占比同理，只在有提交的 episode 上取平均；BadRate@3 的分母是全部 query（非 `ok` 的 episode 没有提交，不算坏例）。
 
 ## 4. Prompt 与环境版本
 
@@ -157,7 +160,7 @@ U 商品按不相关计分，但其中可能有真正相关的商品。最终报
 ## 9. 环境与评测管线的验收
 
 - [ ] NDCG@10、E-Recall@10、BadRate@3 在手算的小例子上结果一致，包括提交不足 10 个和无有效提交的情况（单元测试）
-- [ ] 同一个模型、同一个环境版本，greedy 评测两次的轨迹逐字一致
+- [ ] 同一个模型、同一个环境版本，greedy 评测两次的轨迹逐字一致（`wall_time_s` 是实测耗时，比较时排除该字段）
 - [ ] 同一份轨迹文件、同一个 seed，bootstrap 结果逐位一致
 - [ ] 非 `ok` 状态的 episode 按 0 分计入分母（单元测试）
 - [ ] 工具返回给 Agent 的内容中不含 `label`、`gain`、`source`（单元测试）

@@ -130,7 +130,7 @@
   3. **本地 CPU 研发与云端 GPU `T0` 解耦**：`T1`–`T5` 与新增的 `T5b`（B0）全部可在本地纯 CPU 环境独立开发与验收，不再依赖 `T0`；`T0` 只作为 `T6`（LLM rollout）与 `T9/T11`（训练）的前置。
   4. **`T0` 模型选型止损红线**：Qwen3.5-2B 原生含多模态结构，`T0` 中 verl + vLLM 纯文本加载、hermes 工具解析或 LoRA 训练步出现**任何**框架兼容阻力，立即切换纯文本备选底座（同尺寸 Qwen3 或 Qwen2.5-Instruct 系列），在魔改兼容上的投入不得超过半天。
   5. **依赖分层**：`pyproject.toml` 基础依赖只放跨平台纯 Python 核心库；`torch / transformers / peft` 与 Linux 专属的 `vllm / verl` 拆为 optional extras，保证任意环境 `uv sync` 秒级完成并能跑全部核心单元测试。
-  6. **本地 M0 的两处实现精确化**（不改变 spec 的约束，只写明做法）：BM25 用仓库内自带的实现（倒排索引，同分按 `product_id`），不引入 `rank-bm25`，以保证确定性与全目录检索的速度；`pools/train.jsonl` 只为三份训练列表（`rl_l1 ∪ sft_traj ∪ rl_l2`）中的 query 构池，因为 train 的其余 query 不会被任何环节使用。
+  6. **本地 M0 的两处实现精确化**（不改变 spec 的约束，只写明做法）：BM25 用仓库内自带的实现（倒排索引，同分按 `product_id`），不引入 `rank-bm25`，以保证确定性与全目录检索的速度；`pools/train.jsonl` 只为三份训练列表（`rl_l1 ∪ sft_traj ∪ rl_l2`）中的 query 构池，因为 train 的其余 query 不会被任何环节使用；env_v1 的 “token” 指空白分隔的词，环境包不依赖分词器库；轨迹文件首行为 `_meta` 元数据（见 `specs/eval.md` §3）。
 - **其他方案**：
   - 保持 5–6 周全量范围：任何一项实验延期都会拖垮结项，对实习投递的时间窗口不利。
   - 砍掉 B3 或效率基准：B3 是“为什么要 Agent”的质疑入口，效率基准是回答成本与延迟边界的唯一证据，二者都保留，只砍扩展性实验。

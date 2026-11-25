@@ -1,0 +1,34 @@
+[project]
+name = "searchtune"
+version = "0.1.0"
+description = "ESCI 封闭商品池上的商品搜索 Agent 强化学习后训练"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pyarrow>=15",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# B3 精排、本地 GPU 冒烟（跨平台）
+rerank = ["torch", "transformers", "peft"]
+# rollout 与训练（仅 Linux；版本在 T0 与 verl 官方推荐组合一起锁定）
+gpu = ["searchtune[rerank]", "vllm; sys_platform == 'linux'", "verl; sys_platform == 'linux'"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[project.scripts]
+searchtune = "searchtune.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/searchtune"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = ["realdata: 需要 data/raw 中真实 ESCI 文件，缺失则跳过"]

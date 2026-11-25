@@ -27,9 +27,12 @@ data/raw ──prepare──▶ catalog.jsonl + pools/<split>.jsonl + splits/*.t
 ```
 src/searchtune/
   cli.py                # 统一入口：python -m searchtune <子命令>
-  config.py             # YAML → dataclass，未知字段直接报错
+  text.py               # query 规范化、分词、按词截断（各模块共用）
+  config.py             # YAML → dataclass，未知字段直接报错；集中定义 EnvConfig / RewardConfig / DataConfig
   runs.py               # run_id 生成、run 目录、git 状态检查
   data/
+    pool.py             # Pool / Product / Catalog 数据结构与读写
+    manifest.py         # 目录布局、sha256 校验（MANIFEST.json）
     prepare.py          # raw → catalog、pools、splits、MANIFEST、STATS
     pools.py            # 商品池构造（specs/data.md §5）
     slices.py           # 难例切片规则（specs/eval.md §2.3）
@@ -48,11 +51,13 @@ src/searchtune/
   eval/
     metrics.py          # NDCG@10、E-Recall@10、BadRate@3 等
     bootstrap.py        # 按 query 配对 bootstrap
+    trajectory.py       # 轨迹文件读写（首行 _meta）
     score.py            # 轨迹文件 + 商品池 → metrics.json + EXPERIMENTS 行
     efficiency.py       # 推理效率基准：P50/P95 延迟、生成 token、显存（specs/eval.md §10，M3）
   train/
     gen_traj.py         # B4 采样 + 拒绝采样 → SFT 数据
     cross_encoder.py    # B3 的 DeBERTa 训练
+scripts/                # download_esci.py（T2）；后续的 setup_cloud.sh（T0）
 configs/                # 每个实验一个 YAML（含 verl 配置），随代码提交
 prompts/                # agent_v<N>.txt、rewrite_v<N>.txt
 data/                   # 见 specs/data.md §8
