@@ -74,8 +74,8 @@
      "sha256": "d42e09b50d6a3ad261d519cbb67f5e6a075d2f3de46b5b14b8ace17cd9ddffb9"
     }
    },
-   "code_commit": "7f0f5bc49b1d2411f6360d590404133370968567",
-   "code_dirty": true,
+   "code_commit": "42dd0d35d5155c13233d85e668c747432b9cadaf",
+   "code_dirty": false,
    "params": {
     "brand_min_count": 50,
     "data_version": "v1",
