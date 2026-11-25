@@ -49,6 +49,7 @@ src/searchtune/
     metrics.py          # NDCG@10、E-Recall@10、BadRate@3 等
     bootstrap.py        # 按 query 配对 bootstrap
     score.py            # 轨迹文件 + 商品池 → metrics.json + EXPERIMENTS 行
+    efficiency.py       # 推理效率基准：P50/P95 延迟、生成 token、显存（specs/eval.md §10，M3）
   train/
     gen_traj.py         # B4 采样 + 拒绝采样 → SFT 数据
     cross_encoder.py    # B3 的 DeBERTa 训练
@@ -114,19 +115,27 @@ def paired_bootstrap(traj_a: Path, traj_b: Path, pools_path: Path,
 
 ## 7. 环境
 
-- Python 3.11，用 `uv` 管理依赖，`uv.lock` 进 git。
-- 主要依赖：`verl`、`vllm`（或 `sglang`）、`torch`、`transformers`、`peft`、`rank-bm25`（或同类实现）、`pyarrow`、`pyyaml`、`pytest`。verl、vLLM 和 PyTorch 的版本一起锁定，以 verl 官方推荐的组合为准。
+- Python ≥ 3.11（本地开发用 3.12 验证过），用 `uv` 管理依赖，`uv.lock` 进 git。
+- **依赖分层（DEC-015）**：`pyproject.toml` 的基础依赖只放跨平台纯 Python 核心库——`pyarrow`、`pyyaml`、`pytest`（dev 组）。BM25 用仓库内自带的倒排索引实现（`env/pool_index.py` 的 `BM25Index`），不引入 `rank-bm25`：同分按 `product_id` 的确定性规则和全目录检索速度都需要自己控制。任何环境 `uv sync` 都应秒级装好，并能跑全部核心单元测试（数据、BM25、配置、打分、环境）。
+- 重依赖拆为 optional extras：
+
+| extra | 内容 | 用途 | 平台 |
+|---|---|---|---|
+| `rerank` | `torch`、`transformers`、`peft` | B3 精排、本地冒烟 | 跨平台 |
+| `gpu` | `vllm`、`verl`（在 `rerank` 之上） | rollout、训练 | 仅 Linux（云端 / WSL2） |
+
+  verl、vLLM 和 PyTorch 的版本一起锁定，以 verl 官方推荐的组合为准，锁定在 T0 完成。核心包不得在模块顶层 import extras 中的库。
 
 ### 7.1 运行平台（DEC-009）
 
 | 平台 | 硬件 | 负责 |
 |---|---|---|
-| 本地 WSL2 Ubuntu | RTX 5060 Laptop 8GB，24GB 内存 | 写代码、数据管线、环境、打分器、单元测试；用 Qwen3.5-0.8B 在 `dev-quick` 上冒烟 |
+| 本地（WSL2 Ubuntu 或 Windows，纯 CPU 即可） | RTX 5060 Laptop 8GB，24GB 内存 | 写代码、数据管线、环境、打分器、B0、单元测试（不依赖 T0）；GPU 冒烟用 Qwen3.5-0.8B 在 `dev-quick` 上 |
 | 云端 AutoDL | RTX 4090 24GB；L2 不够时换 48–80GB 单卡 | 所有正式结果：baseline、轨迹生成、全部训练与评测 |
 
 **判断标准**：结果会进入比较、checkpoint 选择或验收判定的，一律在云端跑。本地跑出的数字只用来确认代码能跑通，不写进 `EXPERIMENTS.md` 的结果栏。
 
-### 7.2 本地 WSL2 的注意事项
+### 7.2 本地 WSL2 的注意事项（仅需要本地 GPU 冒烟时适用；M0 纯 CPU 工作不需要）
 
 - RTX 5060 是 Blackwell 架构，PyTorch 必须安装 CUDA 12.8 或更高版本的构建。
 - WSL 内不装 Linux 版 NVIDIA 驱动，直接使用 Windows 驱动。

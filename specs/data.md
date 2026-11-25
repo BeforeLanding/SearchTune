@@ -59,6 +59,7 @@ E/S/C/I 的增益沿用 KDD Cup 2022 Task 1 的设定。
 | `test` | 从 ESCI `split == "test"` 且 `small_version == 1` 中按 query 抽 1000 个 | 1000 query | 冻结测试集，规则见 `specs/eval.md` |
 
 - 所有抽样 `seed = 20261031`。
+- `train` 的商品池只为三份训练列表（`rl_l1 ∪ sft_traj ∪ rl_l2`，见 `specs/training.md` §6）中的 query 构造（DEC-015）；train 的其余 query 没有任何环节会用到，不建池。`dev`、`dev-quick`、`test` 的池全量构造。
 - 每个 split 的 query_id 列表写入 `data/splits/<split>.txt`（**进 git**，体积小，是切分的唯一事实来源）。
 - 选 `small_version == 1` 是因为这部分 query 更难，区分度更高。
 
