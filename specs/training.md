@@ -153,11 +153,11 @@ r = NDCG@10
 
 | 列表 | 来源 | 规模 | 用途 |
 |---|---|---|---|
-| `rl_l1.txt` | train | 8000 query | L1 GRPO |
+| `rl_l1.txt` | train（`small_version == 1`） | 8000 query | L1 GRPO |
 | `sft_traj.txt` | train | 4000 query | 生成 L2 冷启动轨迹 |
 | `rl_l2.txt` | train | 3000 query | L2 GRPO |
 
-三份列表都按 query 抽样，seed = 20261031。`sft_traj` 与 `rl_l2` 必须不相交，这样 RL 阶段看到的都是新 query。`rl_l1` 不受这条限制，因为 L1 和 L2 是两条独立的训练线。
+三份列表都从 `small_version == 1` 的 train query 中按 query 抽样（DEC-017：与 dev、test 同一难度口径；ESCI us 的 train 里这样的 query 约 2 万个，足够容纳 dev 500 + 三份列表 15500），seed = 20261031。`sft_traj` 与 `rl_l2` 必须不相交，这样 RL 阶段看到的都是新 query。`rl_l1` 不受这条限制，因为 L1 和 L2 是两条独立的训练线。
 
 ## 7. 实验矩阵
 

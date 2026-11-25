@@ -44,4 +44,5 @@ def test_data_defaults_match_spec():
     c = DataConfig()
     assert (c.seed, c.n_test, c.n_dev, c.n_dev_quick) == (20261031, 1000, 500, 200)
     assert (c.n_rl_l1, c.n_sft_traj, c.n_rl_l2) == (8000, 4000, 3000)
-    assert (c.n_bm25_distractors, c.n_random_distractors, c.jaccard_threshold) == (50, 50, 0.5)
+    assert (c.n_bm25_distractors, c.n_random_distractors, c.jaccard_threshold) == (30, 30, 0.5)
+    assert (c.bm25_rank_lo, c.bm25_rank_hi, c.data_version) == (200, 600, "v2")

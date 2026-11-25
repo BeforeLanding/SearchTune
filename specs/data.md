@@ -57,16 +57,16 @@ E/S/C/I 的增益沿用 KDD Cup 2022 Task 1 的设定。
 
 | split | 来源 | 规模 | 用途 |
 |---|---|---|---|
-| `train` | ESCI `split == "train"`，扣除 dev 的 query | 剩余全部 | 训练；L1、L2 各自使用的子集在 `specs/training.md` §6 中定义 |
-| `dev` | 从 ESCI train 中按 query 抽 500 个 | 500 query | 调参、选 checkpoint、迭代 prompt |
+| `train` | ESCI `split == "train"` 且 `small_version == 1`，扣除 dev 的 query | 剩余全部 | 训练；L1、L2 各自使用的子集在 `specs/training.md` §6 中定义 |
+| `dev` | 从 ESCI train 中 `small_version == 1` 的 query 里按 query 抽 500 个 | 500 query | 调参、选 checkpoint、迭代 prompt |
 | `dev-quick` | 从 dev 中抽 200 个 query | 200 query | 开发期快速冒烟评测 |
 | `test` | 从 ESCI `split == "test"` 且 `small_version == 1` 中按 query 抽 1000 个 | 1000 query | 冻结测试集，规则见 `specs/eval.md` |
 
 - 所有抽样 `seed = 20261031`。
 - `train` 的商品池只为三份训练列表（`rl_l1 ∪ sft_traj ∪ rl_l2`，见 `specs/training.md` §6）中的 query 构造（DEC-015）；train 的其余 query 没有任何环节会用到，不建池。`dev`、`dev-quick`、`test` 的池全量构造。
-- 每个 split 的 query_id 列表写入 `data/splits/<split>.txt`（**进 git**，体积小，是切分的唯一事实来源）。
+- 每个 split 的 query_id 列表写入 `data/splits/<version>/<split>.txt`（按数据版本分目录，旧版本不覆盖）（**进 git**，体积小，是切分的唯一事实来源）。
 - “`small_version == 1` 的 query”指该 query 的**全部**样本行的 `small_version` 都是 1（真实数据中有 7 个 query 的各行取值不一致，不进 test 候选）。
-- 选 `small_version == 1` 是因为这部分 query 更难，区分度更高。
+- **`train`、`dev`、`dev-quick`、`test` 统一限定 `small_version == 1`**（DEC-017）：此前只有 test 做了限定，造成训练/开发与评测的难度分布偏移（v1 的 train 池 I 占比 1.4%，test 3.0%；dev 的否定类 query 仅 15 个，test 94 个），B0 的 BadRate@3 也因此只有 0.01，坏例惩罚几乎没有信号。选 `small_version == 1` 是因为这部分 query 更难，区分度更高。
 - 抽样实现：把候选 query 按 `sha256("<seed>:<用途>:<query_id>")` 排序后取前 n 个，结果与输入顺序、平台无关。
 - 抽样的候选范围都先扣除“没有任何 E/S/C 的 query”（§5.4），保证 dev/test 的规模不被事后过滤缩水。
 - 先抽 test，再抽 dev：dev 的候选排除与 test 规范化 query 相同的 query，这样 dev 与 test 之间同样零重叠（比 §6.4 只要求 train 对 dev/test 更严）。
@@ -80,12 +80,14 @@ E/S/C/I 的增益沿用 KDD Cup 2022 Task 1 的设定。
 对每个 query q：
 
 1. **标注商品** L(q)：ESCI 中 q 的全部已标注商品，带 E/S/C/I 标签。
-2. **难干扰商品**：用 q 在商品目录（标题 + 品牌）上做 BM25 检索，排除 L(q) 和 §5.2 中的“疑似相关”商品后，取前 50 个，标为 `U`。
-3. **随机干扰商品**：从商品目录中随机抽 50 个（排除同样的集合），标为 `U`。
+2. **难干扰商品**（v2，DEC-017）：用 q 在商品目录（标题 + 品牌）上做 BM25 检索，只看**排名 200–600 的中段区间**（不取头部：头部会大量捞出 ESCI 没标注的真相关商品，被记成 U 后毒化奖励）；按排名顺序，排除 L(q)、§5.2 中的“疑似相关”商品、以及标题（含品牌）已包含 q 全部非停用词的商品后，取前 30 个，标为 `U`。区间内合格者不足 30 个时就少取，数量记入 STATS。
+3. **随机干扰商品**：从商品目录中随机抽 30 个（排除同样的集合，含标题包含全部非停用词的商品），标为 `U`。
 
-池的大小约为 |L(q)| + 100。数量参数写进数据版本，修改就升版本号。
+池的大小约为 |L(q)| + 60。v1 是 rank 1–50 加 50 随机，已被 v2 取代。数量参数写进数据版本，修改就升版本号。
 
 ### 5.2 降低“漏标的相关商品”
+
+（v2 的两条主要手段是 §5.1 的中段区间与“标题包含全部非停用词”排除；停用词表见 `searchtune/text.py`。下面是 Jaccard 规则。）
 
 BM25 检索出的干扰商品里，可能混有对 q 真正相关、只是 ESCI 没有标注的商品。为降低这种风险：
 
@@ -139,9 +141,10 @@ data/
   processed/<version>/       # 处理结果，gitignore
     catalog.jsonl
     pools/<split>.jsonl
-  splits/*.txt               # query_id 列表，进 git
+  splits/<version>/*.txt     # query_id 列表，进 git
+  slices/<version>/*.json    # 难例切片成员，进 git
   MANIFEST.json              # 进 git
-  STATS.md                   # 进 git，由管线生成
+  STATS.md                   # 进 git，当前版本的统计，由管线生成（旧版本留档为 STATS-<version>.md）
 ```
 
 ## 9. 验收

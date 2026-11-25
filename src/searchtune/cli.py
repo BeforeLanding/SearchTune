@@ -21,7 +21,7 @@ SUBCOMMANDS = ("prepare", "rollout", "score", "compare", "gen-traj", "train-ce",
 
 def _add_data_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--data-root", default="data", help="数据根目录（默认 data）")
-    p.add_argument("--data-version", default="v1")
+    p.add_argument("--data-version", default="v2")
 
 
 def build_parser() -> argparse.ArgumentParser:

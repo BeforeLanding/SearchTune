@@ -35,7 +35,7 @@ def count_rows(path: str | Path) -> int:
 class Layout:
     """``data_root`` 下的目录约定。"""
 
-    def __init__(self, data_root: str | Path = "data", version: str = "v1"):
+    def __init__(self, data_root: str | Path = "data", version: str = "v2"):
         self.root = Path(data_root)
         self.version = version
 
@@ -55,10 +55,10 @@ class Layout:
         return self.processed / "pools" / f"{split}.jsonl"
 
     def split_list(self, name: str) -> Path:
-        return self.root / "splits" / f"{name}.txt"
+        return self.root / "splits" / self.version / f"{name}.txt"
 
     def slices(self, split: str) -> Path:
-        return self.root / "slices" / f"{split}.json"
+        return self.root / "slices" / self.version / f"{split}.json"
 
     @property
     def manifest(self) -> Path:

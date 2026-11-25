@@ -1,4 +1,4 @@
-# 数据统计（v1）
+# 数据统计（v1，已被 v2 取代，仅留档；见 DECISIONS.md DEC-017）
 
 > 由 `python -m searchtune prepare` 生成，请勿手改。
 

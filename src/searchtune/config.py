@@ -51,7 +51,7 @@ class RewardConfig:
 class DataConfig:
     """数据版本参数（specs/data.md §4、§5）。任一项变化都要升 data_version。"""
 
-    data_version: str = "v1"
+    data_version: str = "v2"
     seed: int = SEED
     locale: str = "us"
     n_test: int = 1000
@@ -60,8 +60,10 @@ class DataConfig:
     n_rl_l1: int = 8000
     n_sft_traj: int = 4000
     n_rl_l2: int = 3000
-    n_bm25_distractors: int = 50
-    n_random_distractors: int = 50
+    n_bm25_distractors: int = 30
+    n_random_distractors: int = 30
+    bm25_rank_lo: int = 200  # BM25 难干扰取自全目录检索排名 [lo, hi] 的中段（DEC-017）
+    bm25_rank_hi: int = 600
     jaccard_threshold: float = 0.5
     brand_min_count: int = 50  # 切片“指定品牌”：品牌在目录中至少出现的商品数（太小会混入 without、not 之类的伪品牌）
     long_query_words: int = 6  # 切片“长 query”

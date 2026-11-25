@@ -47,6 +47,22 @@ class BM25Index:
         norm = 1.0 - b + b * self.doc_len / self.avgdl if self.avgdl > 0 else np.ones(self.n)
         self._len_norm = k1 * norm
 
+    def contains_all(self, doc_id: str, terms: list[str]) -> bool:
+        """文档是否包含全部 terms（terms 为空时返回 False）。"""
+        if not terms:
+            return False
+        if not hasattr(self, "_pos"):
+            self._pos = {d: i for i, d in enumerate(self.doc_ids)}
+        i = self._pos[doc_id]
+        for t in set(terms):
+            idx = self._idx.get(t)
+            if idx is None:
+                return False
+            j = int(np.searchsorted(idx, i))
+            if j >= len(idx) or idx[j] != i:
+                return False
+        return True
+
     def scores(self, query_tokens: list[str]) -> np.ndarray:
         s = np.zeros(self.n, dtype=np.float64)
         for term in sorted(set(query_tokens)):  # 固定累加顺序，保证结果可复现

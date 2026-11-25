@@ -55,9 +55,9 @@ def test_score_full_metrics(prepared, traj):
               "gen_tokens_mean", "wall_time_s_p90", "format_error_rate", "budget_exhausted_rate", "truncated_rate", "slices"):
         assert k in m
     assert 0.0 <= m["ndcg_at_10"] <= 1.0 and m["n_queries"] == prepared["cfg"].n_dev and m["n_calls_mean"] == 1.0
-    assert m["env_version"] == ENV_VERSION and m["data_version"] == "v1" and m["split"] == "dev"
+    assert m["env_version"] == ENV_VERSION and m["data_version"] == "v2" and m["split"] == "dev"
     row = experiments_row(m, "local-cpu")
-    assert row.startswith("| B0-v1-") and "local-cpu" in row and row.count("|") == 15
+    assert row.startswith("| B0-v2-") and "local-cpu" in row and row.count("|") == 15
 
 
 def test_score_refuses_env_version_mismatch(prepared, traj, tmp_path):
@@ -158,7 +158,7 @@ def test_rollout_refuses_tampered_data(prepared, tmp_path):
 
     root = tmp_path / "copy"
     shutil.copytree(prepared["root"], root)
-    lay = Layout(root, "v1")
+    lay = Layout(root, "v2")
     with open(lay.pools("dev"), "a", encoding="utf-8") as f:
         f.write("\n\n")
     with pytest.raises(ManifestError, match="sha256"):

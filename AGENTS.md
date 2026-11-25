@@ -30,6 +30,6 @@
 
 ## 仓库约定
 
-- 原始数据、`data/processed/`、`runs/`、checkpoint 不进 git；`data/splits/*.txt`、`data/MANIFEST.json`、`data/STATS.md` 进 git。
+- 原始数据、`data/processed/`、`runs/`、checkpoint 不进 git；`data/splits/<version>/`、`data/slices/<version>/`、`data/MANIFEST.json`、`data/STATS*.md` 进 git。
 - 命令：`uv sync` 后 `uv run pytest`；入口 `python -m searchtune --help`。
 - 文本文件统一 LF 换行、UTF-8。

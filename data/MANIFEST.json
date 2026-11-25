@@ -37,39 +37,39 @@
      "rows": 14273,
      "sha256": "6d4450ad92ac54bf4ac9db0efe4aed31df7d0ca606700da8a17f4181f41bd5e7"
     },
-    "slices/dev.json": {
+    "slices/v1/dev.json": {
      "rows": null,
      "sha256": "0ec6794eb715a61724b88e0267fc178c8b669975b4eb577b25207ba0d9d3f61a"
     },
-    "slices/test.json": {
+    "slices/v1/test.json": {
      "rows": null,
      "sha256": "8126a1da6571d2e1c49a5785047db558858bd408c1c26ab1bea7d1c3393b73bd"
     },
-    "splits/dev-quick.txt": {
+    "splits/v1/dev-quick.txt": {
      "rows": 200,
      "sha256": "2ec703891d130485d969699ada1371b14a723aa8383003411262c9ffcc7a8d52"
     },
-    "splits/dev.txt": {
+    "splits/v1/dev.txt": {
      "rows": 500,
      "sha256": "eb1c52fc09bd79e8b34da60be1a7d31cfa4ce6538d0c4a5386d163d56aeb4a7f"
     },
-    "splits/rl_l1.txt": {
+    "splits/v1/rl_l1.txt": {
      "rows": 8000,
      "sha256": "ad63ad269a31f65147ebe098a281c694b4269ee6fc481126468ee0ccdfb40029"
     },
-    "splits/rl_l2.txt": {
+    "splits/v1/rl_l2.txt": {
      "rows": 3000,
      "sha256": "daf4e4257fc29600c0389c2fa2b1256bb4147d6aae11f8ed686af9bec385cd9d"
     },
-    "splits/sft_traj.txt": {
+    "splits/v1/sft_traj.txt": {
      "rows": 4000,
      "sha256": "129b568623f50d33c441eb6b86fc95e60425a53a61c2b95ae0c160e4bf70d9d1"
     },
-    "splits/test.txt": {
+    "splits/v1/test.txt": {
      "rows": 1000,
      "sha256": "4cbacbf9c9fcda79b6e8dd6b0d6aab1e56158e62a50ab0a3fbc117f8a3820bca"
     },
-    "splits/train.txt": {
+    "splits/v1/train.txt": {
      "rows": 74387,
      "sha256": "d42e09b50d6a3ad261d519cbb67f5e6a075d2f3de46b5b14b8ace17cd9ddffb9"
     }

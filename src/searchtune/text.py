@@ -7,6 +7,16 @@ import re
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
+STOPWORDS = frozenset(
+    "a an the and or of for to in on at by with from as is are be it its this that these those s".split()
+)
+
+
+def content_tokens(text: str) -> list[str]:
+    """去掉停用词后的词（用于“标题已包含 query 全部非停用词”的判断）。"""
+    return [t for t in tokenize(text) if t not in STOPWORDS]
+
+
 def normalize_query(query: str) -> str:
     """规范化 query：小写、去首尾空白、合并连续空白（specs/data.md §6.4）。"""
     return " ".join(query.lower().split())

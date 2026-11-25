@@ -38,6 +38,7 @@ EXAMPLES_SCHEMA = pa.schema(
 )
 N_PRODUCTS = 400
 N_TRAIN_Q, N_TEST_Q = 50, 30
+NOT_SMALL = set(range(51, 61)) | {9, 10}  # 非 small_version 的 query：train 里的 9、10 与 test 里的 51..60
 ALL_I_QUERY = 80  # 一个只有 I 标注的 query：不建池
 # test query 为 51..80，其中 61..80 是 small_version=1；去掉 ALL_I_QUERY 和“小版本不一致”的 70 号后，可进 test 的有 18 个
 CROSS_SPLIT_QUERY = 7  # 同一 query_id 同时出现在 train 与 test（真实 ESCI 里有 1 个这样的 query）
@@ -47,7 +48,7 @@ MIXED_SMALL_QUERY = 70  # 各行 small_version 不一致（真实 ESCI 里有 7 
 def fixture_config(**kw) -> DataConfig:
     base = dict(
         n_test=18, n_dev=8, n_dev_quick=3, n_rl_l1=10, n_sft_traj=8, n_rl_l2=8,
-        n_bm25_distractors=5, n_random_distractors=5, brand_min_count=2,
+        n_bm25_distractors=5, n_random_distractors=5, bm25_rank_lo=3, bm25_rank_hi=60, brand_min_count=2,
     )
     base.update(kw)
     return DataConfig(**base)
@@ -95,7 +96,7 @@ def build_raw(raw_dir: Path) -> dict:
         extra = ["", " 24 pack", " without sugar", " for iphone 13", " nike", " black large size"][qid % 6]
         text = f"{adj} {cat}{extra} q{qid}"  # q{qid} 保证规范化 query 互不相同
         split = "train" if qid <= N_TRAIN_Q else "test"
-        small = 1 if qid > N_TRAIN_Q + 10 else 0
+        small = 0 if qid in NOT_SMALL else 1
         base = qid * 3
         for j, lab in enumerate(labels_cycle):
             if qid == ALL_I_QUERY:

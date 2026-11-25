@@ -172,7 +172,7 @@ def make_splits(recs: dict[str, QueryRec], cfg: DataConfig, stats: dict) -> Spli
     test = _pick(test_pop, cfg.n_test, cfg.seed, "test")
     test_norm = {norm[q] for q in test}
 
-    dev_pop = [q for q in eligible if recs[q].esci_split == "train" and norm[q] not in test_norm]
+    dev_pop = [q for q in eligible if recs[q].esci_split == "train" and recs[q].small and norm[q] not in test_norm]
     dev = _pick(dev_pop, cfg.n_dev, cfg.seed, "dev")
     dev_norm = {norm[q] for q in dev}
     stats["dev_excluded_by_test_overlap"] = sum(
@@ -182,7 +182,7 @@ def make_splits(recs: dict[str, QueryRec], cfg: DataConfig, stats: dict) -> Spli
 
     heldout = test_norm | dev_norm
     dev_set = set(dev)
-    train_all = [q for q in eligible if recs[q].esci_split == "train" and q not in dev_set]
+    train_all = [q for q in eligible if recs[q].esci_split == "train" and recs[q].small and q not in dev_set]
     train = [q for q in train_all if norm[q] not in heldout]
     stats["dropped_train_query_overlap"] = len(train_all) - len(train)
     train = sorted(train, key=qid_key)
@@ -308,7 +308,7 @@ def prepare(cfg: DataConfig, layout: Layout, raw_dir: Path | None = None, repo_r
         built[split] = {}
         for q in qids:
             pool = builder.build(q, recs[q].query, split, recs[q].labels)
-            check_pool_rules(pool, es_queries, query_words, cfg)
+            check_pool_rules(pool, es_queries, query_words, cfg, builder.covers)
             built[split][q] = pool
     dq = {q: built["dev"][q] for q in splits.dev_quick}
     built["dev-quick"] = {
@@ -332,13 +332,13 @@ def prepare(cfg: DataConfig, layout: Layout, raw_dir: Path | None = None, repo_r
         slice_counts[split] = {s: len(sl[s]) for s in SLICES}
     stats["slice_counts"] = slice_counts
 
-    stats.update(_pool_stats(built, splits))
+    stats.update(_pool_stats(built, splits, cfg))
     layout.stats.write_text(render_stats(stats, cfg), encoding="utf-8", newline="\n")
     write_manifest(layout, cfg, raw, code_state)
     return stats
 
 
-def _pool_stats(built: dict[str, dict[str, Pool]], splits: Splits) -> dict:
+def _pool_stats(built: dict[str, dict[str, Pool]], splits: Splits, cfg: DataConfig) -> dict:
     out: dict = {"n_queries": {k: len(v) for k, v in built.items()}}
     out["n_queries"]["train_total"] = len(splits.train)
     sizes, labels = {}, {}
@@ -363,7 +363,7 @@ def _pool_stats(built: dict[str, dict[str, Pool]], splits: Splits) -> dict:
     lab = {it.product_id for p in built["test"].values() for it in p.items if it.source == "labeled"}
     out["test_labeled_products_in_train_pools"] = len(lab & train_items) / len(lab) if lab else 0.0
     out["short_bm25_pools"] = {
-        s: sum(1 for p in pools.values() if sum(1 for it in p.items if it.source == "bm25") < 50)
+        s: sum(1 for p in pools.values() if sum(1 for it in p.items if it.source == "bm25") < cfg.n_bm25_distractors)
         for s, pools in built.items()
     }
     return out
@@ -423,8 +423,9 @@ def write_manifest(layout: Layout, cfg: DataConfig, raw: Path, code_state: tuple
         f: {"sha256": sha256_file(raw / f), "bytes": (raw / f).stat().st_size} for f in (EXAMPLES_FILE, PRODUCTS_FILE)
     }
     artifacts = {}
-    files = [layout.catalog, *sorted(layout.processed.glob("pools/*.jsonl")), *sorted(layout.root.glob("splits/*.txt")),
-             *sorted(layout.root.glob("slices/*.json"))]
+    files = [layout.catalog, *sorted(layout.processed.glob("pools/*.jsonl")),
+             *sorted((layout.root / "splits" / layout.version).glob("*.txt")),
+             *sorted((layout.root / "slices" / layout.version).glob("*.json"))]
     for p in files:
         artifacts[layout.rel(p)] = {
             "sha256": sha256_file(p),

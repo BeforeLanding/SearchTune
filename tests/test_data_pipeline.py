@@ -171,24 +171,24 @@ def test_prepare_is_reproducible(prepared, tmp_path):
     """data §9：从空目录一条命令复现，产物 sha256 与 MANIFEST 一致。"""
     root2 = tmp_path / "again"
     shutil.copytree(prepared["root"] / "raw", root2 / "raw")
-    lay2 = Layout(root2, "v1")
+    lay2 = Layout(root2, "v2")
     prepare(prepared["cfg"], lay2)
-    a = load_manifest(prepared["layout"].manifest)["versions"]["v1"]["artifacts"]
-    b = load_manifest(lay2.manifest)["versions"]["v1"]["artifacts"]
+    a = load_manifest(prepared["layout"].manifest)["versions"]["v2"]["artifacts"]
+    b = load_manifest(lay2.manifest)["versions"]["v2"]["artifacts"]
     assert a == b and len(a) >= 10
     assert prepared["layout"].stats.read_bytes() == lay2.stats.read_bytes()
 
 
 def test_prepare_does_not_overwrite_existing_version(prepared):
     with pytest.raises(FileExistsError, match="升版本号"):
-        prepare(prepared["cfg"], Layout(prepared["root"], "v1"))
+        prepare(prepared["cfg"], Layout(prepared["root"], "v2"))
 
 
 def test_manifest_records_license_raw_hashes_and_params(prepared):
     m = load_manifest(prepared["layout"].manifest)
     assert m["license"]["name"] == "Apache-2.0"
     assert set(m["raw_files"]) == {"shopping_queries_dataset_examples.parquet", "shopping_queries_dataset_products.parquet"}
-    v = m["versions"]["v1"]
+    v = m["versions"]["v2"]
     assert v["seed"] == 20261031 and v["params"]["n_dev"] == prepared["cfg"].n_dev and "code_commit" in v
     rel = prepared["layout"].rel(prepared["layout"].pools("dev"))
     assert v["artifacts"][rel]["rows"] == prepared["cfg"].n_dev
@@ -197,14 +197,14 @@ def test_manifest_records_license_raw_hashes_and_params(prepared):
 def test_manifest_detects_tampering(prepared, tmp_path):
     root = tmp_path / "copy"
     shutil.copytree(prepared["root"], root)
-    lay = Layout(root, "v1")
+    lay = Layout(root, "v2")
     verify_artifacts(lay, [lay.pools("dev"), lay.catalog])
     with open(lay.pools("dev"), "a", encoding="utf-8") as f:
         f.write("\n")
     with pytest.raises(ManifestError, match="sha256"):
         verify_artifacts(lay, [lay.pools("dev")])
     with pytest.raises(ManifestError, match="MANIFEST 中没有"):
-        verify_artifacts(lay, [root / "processed" / "v1" / "pools" / "nope.jsonl"])
+        verify_artifacts(lay, [root / "processed" / "v2" / "pools" / "nope.jsonl"])
 
 
 def test_slices_rules():
@@ -255,3 +255,45 @@ def test_prep_module_helpers():
     assert a == prep._pick(["22", "2", "1", "3"], 2, 7, "p")  # 与输入顺序无关
     with pytest.raises(ValueError, match="不足"):
         prep._pick(["1"], 2, 7, "p")
+
+
+def test_all_splits_use_small_version_only(prepared):
+    """DEC-017：train / dev / dev-quick / test 统一限定 small_version == 1。fixture 里 9、10、51..60 与 70 不是。"""
+    lay = prepared["layout"]
+    banned = {"9", "10", "70", *map(str, range(51, 61))}
+    for name in ("train", "dev", "dev-quick", "test", "rl_l1", "sft_traj", "rl_l2"):
+        assert not banned & set(read_id_list(lay.split_list(name))), name
+
+
+def test_rank_window_and_covering_rule():
+    """干扰商品取自全目录排名 [lo, hi]；标题含 query 全部非停用词的被排除（DEC-017）。"""
+    from searchtune.data.pool import Pool, PoolItem
+    from searchtune.data.pools import build_distractor_index
+
+    cfg = fixture_config(n_bm25_distractors=3, n_random_distractors=0, bm25_rank_lo=3, bm25_rank_hi=6)
+    # query 词 "red shoes"：r0 重复 red 使其排名最高；cover* 含全部词（应排除）；part* 只含 red
+    products = [("cover1", "red shoes", None), ("cover2", "shoes red sale", None)] + [
+        (f"part{i}", "red " + "x " * i, None) for i in range(1, 8)
+    ]
+    index = build_distractor_index(products)
+    qw = {"q": frozenset(tokenize("red shoes"))}
+    builder = PoolBuilder(index, {}, qw, cfg)
+    ranked = [d for d, _ in index.search(tokenize("red shoes"), 6)]
+    pool = builder.build("q", "red shoes", "dev", {"labeled0": "E"})
+    got = [it.product_id for it in pool.items if it.source == "bm25"]
+    assert "cover1" not in got and "cover2" not in got
+    assert set(got) <= set(ranked[2:6]) and len(got) <= 3  # 只来自排名 3..6
+    check_pool_rules(pool, {}, qw, cfg, builder.covers)
+    bad = Pool("q", "red shoes", "dev", pool.items + (PoolItem("cover1", "U", 0.0, "bm25"),), "v2")
+    with pytest.raises(AssertionError, match="全部非停用词"):
+        check_pool_rules(bad, {}, qw, cfg, builder.covers)
+
+
+def test_contains_all_and_stopwords():
+    from searchtune.env.pool_index import BM25Index
+    from searchtune.text import content_tokens
+
+    idx = BM25Index([("a", ["red", "shoes"]), ("b", ["red"])])
+    assert idx.contains_all("a", ["red", "shoes"]) and not idx.contains_all("b", ["red", "shoes"])
+    assert not idx.contains_all("a", []) and not idx.contains_all("a", ["blue"])
+    assert content_tokens("Case for the iPhone 13") == ["case", "iphone", "13"]

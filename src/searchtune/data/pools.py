@@ -8,7 +8,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from searchtune.config import DataConfig
 from searchtune.data.pool import GAIN, Pool, PoolItem
 from searchtune.env.pool_index import BM25Index
-from searchtune.text import tokenize
+from searchtune.text import content_tokens, tokenize
 
 
 def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
@@ -47,6 +47,10 @@ class PoolBuilder:
         self.cfg = cfg
         self.catalog_ids = sorted(index.doc_ids)
 
+    def covers(self, product_id: str, terms: list[str]) -> bool:
+        """标题（含品牌，即 BM25 索引文本）已包含 query 的全部非停用词：很可能是漏标的真相关。"""
+        return self.index.contains_all(product_id, terms)
+
     def is_suspect(self, product_id: str, query_id: str) -> bool:
         """商品在另一个相近 query（Jaccard ≥ 阈值）下被标为 E/S → 疑似对本 query 也相关。"""
         qw = self.query_words[query_id]
@@ -62,22 +66,17 @@ class PoolBuilder:
         excluded = set(labeled)
         items = [PoolItem(pid, lab, GAIN[lab], "labeled") for pid, lab in sorted(labeled.items())]
 
-        # 难干扰：取候选，按需要加大 k，直到凑够或候选耗尽
-        chosen: list[str] = []
-        k = max(4 * cfg.n_bm25_distractors, 200)
+        # 难干扰：全目录 BM25 排名中段 [lo, hi]，按排名顺序取前 n 个合格者（DEC-017）
         tokens = tokenize(query)
-        while True:
-            cands = self.index.search(tokens, k)
-            chosen = []
-            for pid, _ in cands:
-                if pid in excluded or self.is_suspect(pid, query_id):
-                    continue
-                chosen.append(pid)
-                if len(chosen) == cfg.n_bm25_distractors:
-                    break
-            if len(chosen) == cfg.n_bm25_distractors or len(cands) < k:
+        terms = content_tokens(query)
+        cands = self.index.search(tokens, cfg.bm25_rank_hi)[cfg.bm25_rank_lo - 1 :]
+        chosen: list[str] = []
+        for pid, _ in cands:
+            if pid in excluded or self.covers(pid, terms) or self.is_suspect(pid, query_id):
+                continue
+            chosen.append(pid)
+            if len(chosen) == cfg.n_bm25_distractors:
                 break
-            k *= 4
         items += [PoolItem(pid, "U", 0.0, "bm25") for pid in chosen]
         excluded.update(chosen)
 
@@ -89,7 +88,7 @@ class PoolBuilder:
         while len(picked) < cfg.n_random_distractors and attempts < 50 * cfg.n_random_distractors + n_cat:
             attempts += 1
             pid = self.catalog_ids[int(rng.random() * n_cat)]
-            if pid in excluded or self.is_suspect(pid, query_id):
+            if pid in excluded or self.covers(pid, terms) or self.is_suspect(pid, query_id):
                 continue
             picked.append(pid)
             excluded.add(pid)
@@ -102,8 +101,10 @@ def check_pool_rules(
     es_queries: Mapping[str, Sequence[str]],
     query_words: Mapping[str, frozenset[str]],
     cfg: DataConfig,
+    covers=None,
 ) -> None:
-    """独立于构造过程的检查（data §9）：干扰商品与 L(q) 不相交，并满足 Jaccard 排除规则。"""
+    """独立于构造过程的检查（data §9）：干扰商品与 L(q) 不相交，满足 Jaccard 排除规则；
+    给定 ``covers(product_id, terms)`` 时，还检查没有“标题包含 query 全部非停用词”的干扰商品。"""
     labeled = {it.product_id for it in pool.items if it.source == "labeled"}
     for it in pool.items:
         if it.source == "labeled":
@@ -119,6 +120,11 @@ def check_pool_rules(
                 raise AssertionError(
                     f"{pool.query_id}: 干扰商品 {it.product_id} 违反 Jaccard 排除规则（相似 query {other}）"
                 )
+    if covers is not None:
+        terms = content_tokens(pool.query)
+        for it in pool.items:
+            if it.source != "labeled" and covers(it.product_id, terms):
+                raise AssertionError(f"{pool.query_id}: 干扰商品 {it.product_id} 的标题已包含 query 全部非停用词")
     n_b = sum(1 for it in pool.items if it.source == "bm25")
     n_r = sum(1 for it in pool.items if it.source == "random")
     if n_b > cfg.n_bm25_distractors or n_r > cfg.n_random_distractors:
