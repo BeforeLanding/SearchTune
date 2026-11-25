@@ -63,7 +63,7 @@ class DataConfig:
     n_bm25_distractors: int = 50
     n_random_distractors: int = 50
     jaccard_threshold: float = 0.5
-    brand_min_count: int = 5  # 切片“指定品牌”：品牌在目录中至少出现的商品数
+    brand_min_count: int = 50  # 切片“指定品牌”：品牌在目录中至少出现的商品数（太小会混入 without、not 之类的伪品牌）
     long_query_words: int = 6  # 切片“长 query”
 
 

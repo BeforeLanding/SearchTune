@@ -233,6 +233,7 @@ def _write_lines(path: Path, lines: Iterable[str]) -> None:
 def prepare(cfg: DataConfig, layout: Layout, raw_dir: Path | None = None, repo_root: Path | None = None) -> dict:
     """完整的数据准备流程；返回 stats。已存在的数据版本不覆盖（升版本号）。"""
     layout.version = cfg.data_version
+    code_state = (full_commit(repo_root), is_dirty(repo_root))  # 在写出任何产物之前记录
     raw = raw_dir or layout.raw
     if layout.processed.exists() and any(layout.processed.iterdir()):
         raise FileExistsError(f"{layout.processed} 已存在；改动数据参数请升版本号，旧版本不覆盖（specs/data.md §7）")
@@ -333,7 +334,7 @@ def prepare(cfg: DataConfig, layout: Layout, raw_dir: Path | None = None, repo_r
 
     stats.update(_pool_stats(built, splits))
     layout.stats.write_text(render_stats(stats, cfg), encoding="utf-8", newline="\n")
-    write_manifest(layout, cfg, raw, repo_root)
+    write_manifest(layout, cfg, raw, code_state)
     return stats
 
 
@@ -414,7 +415,7 @@ def render_stats(s: dict, cfg: DataConfig) -> str:
     return "\n".join(L)
 
 
-def write_manifest(layout: Layout, cfg: DataConfig, raw: Path, repo_root: Path | None) -> None:
+def write_manifest(layout: Layout, cfg: DataConfig, raw: Path, code_state: tuple[str, bool]) -> None:
     path = layout.manifest
     manifest = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"versions": {}}
     manifest["license"] = LICENSE_INFO
@@ -430,8 +431,8 @@ def write_manifest(layout: Layout, cfg: DataConfig, raw: Path, repo_root: Path |
             "rows": count_rows(p) if p.suffix in (".jsonl", ".txt") else None,
         }
     manifest["versions"][cfg.data_version] = {
-        "code_commit": full_commit(repo_root),
-        "code_dirty": is_dirty(repo_root),
+        "code_commit": code_state[0],
+        "code_dirty": code_state[1],
         "seed": cfg.seed,
         "params": asdict(cfg),
         "artifacts": artifacts,

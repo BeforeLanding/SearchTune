@@ -1,0 +1,98 @@
+{
+ "license": {
+  "name": "Apache-2.0",
+  "note": "数据集与代码均随 esci-data 仓库以 Apache License 2.0 发布",
+  "source": "https://github.com/amazon-science/esci-data/blob/main/LICENSE"
+ },
+ "raw_files": {
+  "shopping_queries_dataset_examples.parquet": {
+   "bytes": 51286808,
+   "sha256": "4a735b693b4a424a6fc67f5be6e4c811495c488bbf66d02a602d308b2744263a"
+  },
+  "shopping_queries_dataset_products.parquet": {
+   "bytes": 1108857465,
+   "sha256": "25124442d064d64b26f74082d6fa09438d679efc0c183cf28d19064a2b65a265"
+  }
+ },
+ "versions": {
+  "v1": {
+   "artifacts": {
+    "processed/v1/catalog.jsonl": {
+     "rows": 1215854,
+     "sha256": "fe387084c8559e8f6c40c91d38bb3ef97436529d0c67b523f6fd320a885911af"
+    },
+    "processed/v1/pools/dev-quick.jsonl": {
+     "rows": 200,
+     "sha256": "f0012592bf1f13502cfd9a92a4976ffde9da3a6434789ddbba3e17e5949e6d07"
+    },
+    "processed/v1/pools/dev.jsonl": {
+     "rows": 500,
+     "sha256": "1c9a49097c999bc7f09628bddbf020af5a911e5cddb2db77f2ea930d97be7b4a"
+    },
+    "processed/v1/pools/test.jsonl": {
+     "rows": 1000,
+     "sha256": "eadfb76513af068949d0512bd513a357aed0032b1c3efae0ac4ad0e8dc4d8aa7"
+    },
+    "processed/v1/pools/train.jsonl": {
+     "rows": 14273,
+     "sha256": "6d4450ad92ac54bf4ac9db0efe4aed31df7d0ca606700da8a17f4181f41bd5e7"
+    },
+    "slices/dev.json": {
+     "rows": null,
+     "sha256": "28bdc4adbf3f630e8d3aac9000b0abc92ff15cddef35d1238b93d15d67a47acd"
+    },
+    "slices/test.json": {
+     "rows": null,
+     "sha256": "9ce880bed002117af434be8262c1cb66132e6c365be89babaeb259589f9e5dec"
+    },
+    "splits/dev-quick.txt": {
+     "rows": 200,
+     "sha256": "2ec703891d130485d969699ada1371b14a723aa8383003411262c9ffcc7a8d52"
+    },
+    "splits/dev.txt": {
+     "rows": 500,
+     "sha256": "eb1c52fc09bd79e8b34da60be1a7d31cfa4ce6538d0c4a5386d163d56aeb4a7f"
+    },
+    "splits/rl_l1.txt": {
+     "rows": 8000,
+     "sha256": "ad63ad269a31f65147ebe098a281c694b4269ee6fc481126468ee0ccdfb40029"
+    },
+    "splits/rl_l2.txt": {
+     "rows": 3000,
+     "sha256": "daf4e4257fc29600c0389c2fa2b1256bb4147d6aae11f8ed686af9bec385cd9d"
+    },
+    "splits/sft_traj.txt": {
+     "rows": 4000,
+     "sha256": "129b568623f50d33c441eb6b86fc95e60425a53a61c2b95ae0c160e4bf70d9d1"
+    },
+    "splits/test.txt": {
+     "rows": 1000,
+     "sha256": "4cbacbf9c9fcda79b6e8dd6b0d6aab1e56158e62a50ab0a3fbc117f8a3820bca"
+    },
+    "splits/train.txt": {
+     "rows": 74387,
+     "sha256": "d42e09b50d6a3ad261d519cbb67f5e6a075d2f3de46b5b14b8ace17cd9ddffb9"
+    }
+   },
+   "code_commit": "fdf738b85d2cbb5206f14522786695216a6e08d9",
+   "code_dirty": true,
+   "params": {
+    "brand_min_count": 5,
+    "data_version": "v1",
+    "jaccard_threshold": 0.5,
+    "locale": "us",
+    "long_query_words": 6,
+    "n_bm25_distractors": 50,
+    "n_dev": 500,
+    "n_dev_quick": 200,
+    "n_random_distractors": 50,
+    "n_rl_l1": 8000,
+    "n_rl_l2": 3000,
+    "n_sft_traj": 4000,
+    "n_test": 1000,
+    "seed": 20261031
+   },
+   "seed": 20261031
+  }
+ }
+}
