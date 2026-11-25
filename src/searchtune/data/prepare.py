@@ -407,7 +407,7 @@ def render_stats(s: dict, cfg: DataConfig) -> str:
           f"（仅标注商品：{s['test_labeled_products_in_train_pools']:.4f}）",
           f"- BM25 干扰不足 {cfg.n_bm25_distractors} 个的池数：" +
           "，".join(f"{k} {v}" for k, v in s["short_bm25_pools"].items()), ""]
-    L += ["## 难例切片", "", "一个 query 可属于多个切片；成员列表见 `data/slices/<split>.json`。", "",
+    L += ["## 难例切片", "", "一个 query 可属于多个切片；成员列表见 `data/slices/<version>/<split>.json`。", "",
           "| 切片 | 规则 | dev | test |", "|---|---|---|---|"]
     for sl in SLICES:
         L.append(f"| {sl} | {SLICE_RULES[sl]} | {s['slice_counts']['dev'][sl]} | {s['slice_counts']['test'][sl]} |")
